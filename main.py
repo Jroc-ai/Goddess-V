@@ -40,6 +40,17 @@ def get_random_message(tab_name):
         return message
     except Exception as e:
         return f"Error pulling message: {e}"
+        
+# Get task trigger message based on type
+def get_trigger_message(trigger_type):
+    try:
+        worksheet = sh.worksheet("Task Triggers")
+        records = worksheet.get_all_records()
+        filtered = [r['Message'] for r in records if r['Type'].strip().lower() == trigger_type.strip().lower()]
+        return random.choice(filtered) if filtered else "No trigger messages found."
+    except Exception as e:
+        return f"Error fetching trigger message: {e}"
+
 
 # Scheduled ritual example (Morning Fire)
 @tasks.loop(hours=24)
@@ -49,10 +60,21 @@ async def morning_fire():
         msg = get_random_message("Morning Fire")
         await channel.send(msg)
 
+# Hourly task check for Before Task
+@tasks.loop(minutes=60)
+async def hourly_task_check():
+    now = datetime.now(pytz.timezone("America/New_York"))  # Adjust timezone if needed
+    if 14 <= now.hour < 15:  # 2PM–3PM window
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            msg = get_trigger_message("Before Task")
+            await channel.send(msg)
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
     morning_fire.start()
+    hourly_task_check.start()
 
 @bot.command()
 async def summon(ctx):
