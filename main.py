@@ -70,11 +70,45 @@ async def hourly_task_check():
             msg = get_trigger_message("Before Task")
             await channel.send(msg)
 
+# Weekly devotion drop (Sunday 11PM EST)
+@tasks.loop(hours=1)
+async def weekly_devotion():
+    now = datetime.now(pytz.timezone("America/New_York"))
+    if now.strftime("%A") == "Sunday" and now.hour == 23:  # 11PM
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            msg = get_random_message("Devotion")
+            await channel.send(msg)
+
+# Surprise Summons: 1–3 random drops between 4PM–4AM
+@tasks.loop(hours=24)
+async def nightly_summons():
+    now = datetime.now(pytz.timezone("America/New_York"))
+    base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)  # Start at 4PM
+
+    # 1–3 random drops across 12 hours (4PM–4AM)
+    num_summons = random.randint(1, 3)
+    intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])  # 12 hours = 720 mins
+
+    for delay_minutes in intervals:
+        drop_time = base_time + timedelta(minutes=delay_minutes)
+        wait_seconds = (drop_time - datetime.now(pytz.timezone("America/New_York"))).total_seconds()
+        if wait_seconds > 0:
+            await asyncio.sleep(wait_seconds)
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            msg = get_random_message("Surprise Summons")
+            await channel.send(msg)
+
+
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
     morning_fire.start()
     hourly_task_check.start()
+    weekly_devotion.start()
+    nightly_summons.start()
 
 @bot.command()
 async def summon(ctx):
