@@ -206,7 +206,6 @@ async def on_message(message):
         )
         reply = response.choices[0].message.content
         await message.channel.send(reply)
-
     except Exception as e:
         await message.channel.send(f"Something went wrong: {e}")
 
