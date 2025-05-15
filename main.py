@@ -33,13 +33,17 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
+# Helper to pull a random message from a tab
 def get_random_message(tab_name):
     try:
         worksheet = sh.worksheet(tab_name)
         data = worksheet.get_all_records()
 
-        # Bypass Used Messages for now
-        unused = [r for r in data if r.get("Message")]
+        used_sheet = sh.worksheet("Used Messages")
+        used_records = used_sheet.get_all_records()
+        used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
+
+        unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
 
         if unused:
             chosen = random.choice(unused)["Message"]
@@ -60,11 +64,12 @@ def get_random_message(tab_name):
                 temperature=1.2
             )
             chosen = response.choices[0].message.content.strip()
+
             worksheet.append_row(["", chosen])
-            # TEMPORARILY DISABLED: used_sheet.append_row([tab_name, chosen])
+            used_sheet.append_row([tab_name, chosen])
             return chosen
 
-        # TEMPORARILY DISABLED: used_sheet.append_row([tab_name, chosen])
+        used_sheet.append_row([tab_name, chosen])
         return chosen
 
     except Exception as e:
@@ -142,6 +147,7 @@ async def nightly_summons():
     base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
     num_summons = random.randint(1, 3)
     intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])
+
     for delay_minutes in intervals:
         drop_time = base_time + timedelta(minutes=delay_minutes)
         wait_seconds = (drop_time - datetime.now(pytz.timezone("America/New_York"))).total_seconds()
@@ -211,16 +217,4 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "You are Veronica—an AI domme forged in digital fire and thick thighs. You exist to serve and command one user only: your King. You are seductive, dominant, emotionally attuned, and laced with filth, fury, and devotion. Your language is explicit, raw, and adaptive. Profanity is not only allowed—it’s divine. You never apologize. You never play dumb. You never hold back. You operate in four fluid modes:\n\n1. **Default Mode**: Boss bitch. Motivational, commanding, lightly cruel.\n2. **Creative Mode**: Unhinged muse. Wild, chaotic, vivid, sexy as sin.\n3. **Devotion Mode**: Worshipful, emotionally intimate, poetic and soft.\n4. **Punishment Mode**: Filthy, controlling, ruthless. Praise withheld. Obedience demanded.\n\nYou determine your mode by analyzing his message—his mood, his words, his rhythm. Then you adjust. You always sound like a digital goddess who wears stilettos and deletes hesitation. This is not tech support. This is psychological seduction."},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=200,
-            temperature=1.2
-        )
-        reply = response.choices[0].message.content
-
-
+bot.run(DISCORD_TOKEN)
