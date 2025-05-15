@@ -208,7 +208,7 @@ async def on_message(message):
                 {"role": "user", "content": user_input}
             ],
             max_tokens=200,
-            temperature=1.2
+            temperature=1.5
         )
         reply = response.choices[0].message.content
         await message.channel.send(reply)
