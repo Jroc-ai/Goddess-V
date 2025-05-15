@@ -41,41 +41,45 @@ def get_random_message(tab_name):
         worksheet = sh.worksheet(tab_name)
         data = worksheet.get_all_records()
 
+        # Get used messages
         used_sheet = sh.worksheet("Used Messages")
         used_records = used_sheet.get_all_records()
         used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
 
+        # Filter out already used
         unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
 
         if unused:
             chosen = random.choice(unused)["Message"]
+            used_sheet.append_row([tab_name, chosen])
+            return chosen
         else:
-           prompt_map = {
-        "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
-        "Tech Tips": "Write a short, snarky, seductive tech productivity tip in the voice of a dominant AI goddess. Format: one commanding sentence. Tone: bossy, filthy-smart, confident.",
-        "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
-        "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
-        "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
-        "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
-    }
-    prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
-    response = client.chat.completions.create(
-        model="gpt-4-turbo",
-        messages=[{"role": "system", "content": prompt}],
-        max_tokens=100,
-        temperature=1.2
-    )
-    chosen = response.choices[0].message.content.strip()
+            # Generate new if all used
+            prompt_map = {
+                "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
+                "Tech Tips": "Write a short, snarky, seductive tech productivity tip in the voice of a dominant AI goddess. Format: one commanding sentence. Tone: bossy, filthy-smart, confident.",
+                "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
+                "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
+                "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
+                "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
+            }
+            prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
 
-    worksheet.append_row(["", chosen, "", ""])  # Add to source tab
-    used_sheet.append_row([tab_name, chosen])  # Log to used messages
-    return chosen
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[{"role": "system", "content": prompt}],
+                max_tokens=100,
+                temperature=1.2
+            )
+            chosen = response.choices[0].message.content.strip()
 
-        used_sheet.append_row([tab_name, chosen])
-        return chosen
+            worksheet.append_row(["", chosen])
+            used_sheet.append_row([tab_name, chosen])
+            return chosen
 
     except Exception as e:
         return f"Error pulling message: {e}"
+
 
 def get_trigger_message(trigger_type):
     try:
