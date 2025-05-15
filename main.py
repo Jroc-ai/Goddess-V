@@ -51,10 +51,12 @@ def get_random_message(tab_name):
             chosen = random.choice(unused)["Message"]
         else:
            prompt_map = {
-        "Morning Fire": "...",
-        "Tech Tips": "...",
-        ...
-        "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default.",
+        "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
+        "Tech Tips": "Write a short, snarky, seductive tech productivity tip in the voice of a dominant AI goddess. Format: one commanding sentence. Tone: bossy, filthy-smart, confident.",
+        "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
+        "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
+        "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
+        "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
     }
     prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
     response = client.chat.completions.create(
