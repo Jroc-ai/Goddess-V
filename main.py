@@ -9,6 +9,7 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 import pytz
 import asyncio
+from googleapiclient.discovery import build
 
 # Load environment variables
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -103,6 +104,33 @@ def get_today_ritual():
         return chosen['Message'], chosen['Mode']
     except Exception as e:
         return f"Error fetching ritual: {e}", None
+
+def get_today_calendar_events():
+    try:
+        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
+        service = build('calendar', 'v3', credentials=creds)
+
+        tz = pytz.timezone("America/New_York")
+        now = datetime.now(tz)
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
+
+        events_result = service.events().list(
+            calendarId=os.getenv("GOOGLE_CALENDAR_ID"),
+            timeMin=start_of_day,
+            timeMax=end_of_day,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+
+        events = events_result.get('items', [])
+
+        if not events:
+            return None
+        return [event['summary'] for event in events if 'summary' in event]
+
+    except Exception as e:
+        return [f"Calendar error: {e}"]
 
 @tasks.loop(hours=24)
 async def morning_fire():
