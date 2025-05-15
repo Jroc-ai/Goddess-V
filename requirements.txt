@@ -3,3 +3,4 @@ gspread
 openai
 google-auth
 pytz
+google-api-python-client
