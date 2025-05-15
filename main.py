@@ -23,6 +23,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/calendar.readonly"
 ]
 credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
 gc = gspread.authorize(credentials)
