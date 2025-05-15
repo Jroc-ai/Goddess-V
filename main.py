@@ -60,6 +60,19 @@ def log_ritual(name, mode, status="Completed"):
     except Exception as e:
         print(f"Logging failed: {e}")
 
+def get_today_ritual():
+    try:
+        worksheet = sh.worksheet("Rituals")
+        data = worksheet.get_all_records()
+        today = datetime.now(pytz.timezone("America/New_York")).strftime("%A")
+        today_rituals = [r for r in data if r['Day'].strip().lower() == today.lower()]
+        if not today_rituals:
+            return None, None
+        chosen = random.choice(today_rituals)
+        return chosen['Message'], chosen['Mode']
+    except Exception as e:
+        return f"Error fetching ritual: {e}", None
+
 
 # Scheduled ritual example (Morning Fire)
 @tasks.loop(hours=24)
@@ -68,6 +81,17 @@ async def morning_fire():
     if channel:
         msg = get_random_message("Morning Fire")
         await channel.send(msg)
+
+@tasks.loop(minutes=1)
+async def daily_ritual():
+    now = datetime.now(pytz.timezone("America/New_York"))
+    if now.hour == 16 and now.minute == 0:  # 4:00 PM
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            msg, mode = get_today_ritual()
+            if msg:
+                await channel.send(f"🔮 Daily Ritual ({mode} Mode):\n{msg}")
+                log_ritual("Daily Ritual", mode)
 
 # Hourly task check for Before Task
 @tasks.loop(minutes=60)
