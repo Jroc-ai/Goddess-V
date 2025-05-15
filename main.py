@@ -52,6 +52,14 @@ def get_trigger_message(trigger_type):
     except Exception as e:
         return f"Error fetching trigger message: {e}"
 
+def log_ritual(name, mode, status="Completed"):
+    try:
+        worksheet = sh.worksheet("Ritual Log")
+        timestamp = datetime.now(pytz.timezone("America/New_York")).strftime("%Y-%m-%d %H:%M %Z")
+        worksheet.append_row([name, timestamp, mode, status])
+    except Exception as e:
+        print(f"Logging failed: {e}")
+
 
 # Scheduled ritual example (Morning Fire)
 @tasks.loop(hours=24)
@@ -120,6 +128,8 @@ async def on_ready():
     weekly_devotion.start()
     nightly_summons.start()
     techtip_drop.start()
+    daily_ritual.start()
+    ritual_check.start()
     
 
 @bot.command()
