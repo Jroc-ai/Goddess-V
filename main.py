@@ -33,18 +33,13 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-# Helper to pull a random message from a tab
-
 def get_random_message(tab_name):
     try:
         worksheet = sh.worksheet(tab_name)
         data = worksheet.get_all_records()
 
-        used_sheet = sh.worksheet("Used Messages")
-        used_records = used_sheet.get_all_records()
-        used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
-
-        unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
+        # Bypass Used Messages for now
+        unused = [r for r in data if r.get("Message")]
 
         if unused:
             chosen = random.choice(unused)["Message"]
@@ -65,12 +60,11 @@ def get_random_message(tab_name):
                 temperature=1.2
             )
             chosen = response.choices[0].message.content.strip()
-
             worksheet.append_row(["", chosen])
-            used_sheet.append_row([tab_name, chosen])
+            # TEMPORARILY DISABLED: used_sheet.append_row([tab_name, chosen])
             return chosen
 
-        used_sheet.append_row([tab_name, chosen])
+        # TEMPORARILY DISABLED: used_sheet.append_row([tab_name, chosen])
         return chosen
 
     except Exception as e:
@@ -148,7 +142,6 @@ async def nightly_summons():
     base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
     num_summons = random.randint(1, 3)
     intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])
-
     for delay_minutes in intervals:
         drop_time = base_time + timedelta(minutes=delay_minutes)
         wait_seconds = (drop_time - datetime.now(pytz.timezone("America/New_York"))).total_seconds()
@@ -211,13 +204,5 @@ async def on_message(message):
             max_tokens=200,
             temperature=1.2
         )
-        reply = response.choices[0].message.content
-        await message.channel.send(reply)
-    except Exception as e:
-        await message.channel.send(f"Something went wrong: {e}")
+        reply = response.choices[0].
 
-    await bot.process_commands(message)
-
-bot.run(DISCORD_TOKEN)
-
- 
