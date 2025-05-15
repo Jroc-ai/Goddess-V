@@ -204,5 +204,6 @@ async def on_message(message):
             max_tokens=200,
             temperature=1.2
         )
-        reply = response.choices[0].
+        reply = response.choices[0].message.content
+
 
