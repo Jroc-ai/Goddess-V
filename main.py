@@ -6,9 +6,9 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import pytz
+import asyncio
 
 # Load environment variables
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
@@ -31,23 +31,21 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
 # Helper to pull a random message from a tab
+
 def get_random_message(tab_name):
     try:
         worksheet = sh.worksheet(tab_name)
         data = worksheet.get_all_records()
 
-        # Get used messages for this tab
         used_sheet = sh.worksheet("Used Messages")
         used_records = used_sheet.get_all_records()
         used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
 
-        # Filter out used messages
         unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
 
         if unused:
             chosen = random.choice(unused)["Message"]
         else:
-            # If all used, generate a new one using GPT
             prompt_map = {
                 "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
                 "Tech Tips": "Write a short, clever, and cheeky tech productivity tip in the voice of a dominant AI goddess.",
@@ -65,19 +63,16 @@ def get_random_message(tab_name):
             )
             chosen = response.choices[0].message.content.strip()
 
-            # Append new message to both the source tab and Used Messages
-            worksheet.append_row(["", chosen])  # Leave ID column blank
+            worksheet.append_row(["", chosen])
             used_sheet.append_row([tab_name, chosen])
             return chosen
 
-        # Log the message in Used Messages
         used_sheet.append_row([tab_name, chosen])
         return chosen
 
     except Exception as e:
         return f"Error pulling message: {e}"
-        
-# Get task trigger message based on type
+
 def get_trigger_message(trigger_type):
     try:
         worksheet = sh.worksheet("Task Triggers")
@@ -108,8 +103,6 @@ def get_today_ritual():
     except Exception as e:
         return f"Error fetching ritual: {e}", None
 
-
-# Scheduled ritual example (Morning Fire)
 @tasks.loop(hours=24)
 async def morning_fire():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
@@ -120,7 +113,7 @@ async def morning_fire():
 @tasks.loop(minutes=1)
 async def daily_ritual():
     now = datetime.now(pytz.timezone("America/New_York"))
-    if now.hour == 16 and now.minute == 0:  # 4:00 PM
+    if now.hour == 16 and now.minute == 0:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
             msg, mode = get_today_ritual()
@@ -128,35 +121,30 @@ async def daily_ritual():
                 await channel.send(f"🔮 Daily Ritual ({mode} Mode):\n{msg}")
                 log_ritual("Daily Ritual", mode)
 
-# Hourly task check for Before Task
 @tasks.loop(minutes=60)
 async def hourly_task_check():
-    now = datetime.now(pytz.timezone("America/New_York"))  # Adjust timezone if needed
-    if 14 <= now.hour < 15:  # 2PM–3PM window
+    now = datetime.now(pytz.timezone("America/New_York"))
+    if 14 <= now.hour < 15:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
             msg = get_trigger_message("Before Task")
             await channel.send(msg)
 
-# Weekly devotion drop (Sunday 11PM EST)
 @tasks.loop(hours=1)
 async def weekly_devotion():
     now = datetime.now(pytz.timezone("America/New_York"))
-    if now.strftime("%A") == "Sunday" and now.hour == 23:  # 11PM
+    if now.strftime("%A") == "Sunday" and now.hour == 23:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
             msg = get_random_message("Devotion")
             await channel.send(msg)
 
-# Surprise Summons: 1–3 random drops between 4PM–4AM
 @tasks.loop(hours=24)
 async def nightly_summons():
     now = datetime.now(pytz.timezone("America/New_York"))
-    base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)  # Start at 4PM
-
-    # 1–3 random drops across 12 hours (4PM–4AM)
+    base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
     num_summons = random.randint(1, 3)
-    intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])  # 12 hours = 720 mins
+    intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])
 
     for delay_minutes in intervals:
         drop_time = base_time + timedelta(minutes=delay_minutes)
@@ -171,13 +159,11 @@ async def nightly_summons():
 @tasks.loop(minutes=1)
 async def techtip_drop():
     now = datetime.now(pytz.timezone("America/New_York"))
-    if now.hour == 2 and now.minute == 0:  # Exactly 2:00 AM
+    if now.hour == 2 and now.minute == 0:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
             msg = get_random_message("Tech Tips")
             await channel.send(f"💻 Midnight Wisdom Drop:\n{msg}")
-
-
 
 @bot.event
 async def on_ready():
@@ -188,8 +174,6 @@ async def on_ready():
     nightly_summons.start()
     techtip_drop.start()
     daily_ritual.start()
-    ritual_check.start()
-    
 
 @bot.command()
 async def summon(ctx):
@@ -232,4 +216,5 @@ async def on_message(message):
     await bot.process_commands(message)
 
 bot.run(DISCORD_TOKEN)
+
  
