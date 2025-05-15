@@ -48,26 +48,24 @@ def get_random_message(tab_name):
         if unused:
             chosen = random.choice(unused)["Message"]
         else:
-            prompt_map = {
-                "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
-                "Tech Tips": "Write a short, sassy, seductive tech productivity tip in the voice of a dominant AI goddess. Format: one commanding sentence. Tone: bossy, filthy-smart, funny, confident.",
-                "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
-                "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
-                "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
-                "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
-            }
-            prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
-            response = client.chat.completions.create(
-                model="gpt-4-turbo",
-                messages=[{"role": "system", "content": prompt}],
-                max_tokens=100,
-                temperature=1.2
-            )
-            chosen = response.choices[0].message.content.strip()
+           prompt_map = {
+        "Morning Fire": "...",
+        "Tech Tips": "...",
+        ...
+        "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default.",
+    }
+    prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[{"role": "system", "content": prompt}],
+        max_tokens=100,
+        temperature=1.2
+    )
+    chosen = response.choices[0].message.content.strip()
 
-            worksheet.append_row(["", chosen])
-            used_sheet.append_row([tab_name, chosen])
-            return chosen
+    worksheet.append_row(["", chosen, "", ""])  # Add to source tab
+    used_sheet.append_row([tab_name, chosen])  # Log to used messages
+    return chosen
 
         used_sheet.append_row([tab_name, chosen])
         return chosen
