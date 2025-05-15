@@ -5,7 +5,7 @@ import random
 import json
 import gspread
 from google.oauth2.service_account import Credentials
-from openai import OpenAI
+import openai 
 from datetime import datetime, timedelta
 import pytz
 import asyncio
@@ -17,8 +17,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 SERVICE_ACCOUNT_INFO = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
 
-# OpenAI client
-client = OpenAI(api_key=OPENAI_API_KEY)
+openai.api_key = OPENAI_API_KEY
 
 # Google Sheets setup
 scopes = [
