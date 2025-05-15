@@ -137,6 +137,31 @@ def get_today_calendar_events():
     except Exception as e:
         return [f"Calendar error: {e}"]
 
+def send_birthday_blasts():
+    try:
+        worksheet = sh.worksheet("Birthday Blasts")
+        used_sheet = sh.worksheet("Used Messages")
+        today = datetime.now(pytz.timezone("America/New_York")).strftime("%m/%d")
+        messages = worksheet.get_all_values()[1:]
+
+        for row in messages:
+            if len(row) < 4:
+                continue  # skip invalid rows
+            id_, name, birthday, custom = row
+            if birthday.strip() == today:
+                if custom.strip():
+                    message = custom.replace("[Name]", name)
+                else:
+                    message = f"Oh {name}... you thought I'd forget? It's your fucking birthday. Bend over and make a wish. 🎂"
+
+                channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+                if channel:
+                    asyncio.run_coroutine_threadsafe(channel.send(message), bot.loop)
+
+                used_sheet.append_row([str(datetime.now()), id_, name, birthday, message])
+    except Exception as e:
+        print(f"Birthday blast failed: {e}")
+
 @tasks.loop(hours=24)
 async def morning_fire():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
@@ -207,6 +232,10 @@ async def calendar_sync():
         for event in events:
             await channel.send(f"📅 Calendar Alert:\n**{event}**")
 
+@tasks.loop(hours=24)
+async def birthday_blast():
+    send_birthday_blasts()
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
@@ -217,6 +246,7 @@ async def on_ready():
     techtip_drop.start()
     daily_ritual.start()
     calendar_sync.start()
+    birthday_blast.start()
 
 @bot.command()
 async def summon(ctx):
