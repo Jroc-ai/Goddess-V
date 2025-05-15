@@ -20,8 +20,10 @@ SERVICE_ACCOUNT_INFO = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Google Sheets setup
-scopes = [" "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"]
+scopes = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 credentials = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
 gc = gspread.authorize(credentials)
 sh = gc.open_by_key(GOOGLE_SHEET_ID)
