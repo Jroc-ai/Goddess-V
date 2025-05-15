@@ -194,6 +194,14 @@ async def techtip_drop():
             msg = get_random_message("Tech Tips")
             await channel.send(f"💻 Midnight Wisdom Drop:\n{msg}")
 
+@tasks.loop(hours=24)
+async def calendar_sync():
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+    events = get_today_calendar_events()
+    if events and channel:
+        for event in events:
+            await channel.send(f"📅 Calendar Alert:\n**{event}**")
+
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
@@ -203,6 +211,7 @@ async def on_ready():
     nightly_summons.start()
     techtip_drop.start()
     daily_ritual.start()
+    calendar_sync.start()
 
 @bot.command()
 async def summon(ctx):
