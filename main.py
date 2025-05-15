@@ -35,10 +35,45 @@ def get_random_message(tab_name):
     try:
         worksheet = sh.worksheet(tab_name)
         data = worksheet.get_all_records()
-        if not data:
-            return "That sheet's empty, King."
-        message = random.choice(data).get("Message", "No message found.")
-        return message
+
+        # Get used messages for this tab
+        used_sheet = sh.worksheet("Used Messages")
+        used_records = used_sheet.get_all_records()
+        used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
+
+        # Filter out used messages
+        unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
+
+        if unused:
+            chosen = random.choice(unused)["Message"]
+        else:
+            # If all used, generate a new one using GPT
+            prompt_map = {
+                "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
+                "Tech Tips": "Write a short, clever, and cheeky tech productivity tip in the voice of a dominant AI goddess.",
+                "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
+                "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
+                "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
+                "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
+            }
+            prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
+            response = client.chat.completions.create(
+                model="gpt-4-turbo",
+                messages=[{"role": "system", "content": prompt}],
+                max_tokens=100,
+                temperature=1.2
+            )
+            chosen = response.choices[0].message.content.strip()
+
+            # Append new message to both the source tab and Used Messages
+            worksheet.append_row(["", chosen])  # Leave ID column blank
+            used_sheet.append_row([tab_name, chosen])
+            return chosen
+
+        # Log the message in Used Messages
+        used_sheet.append_row([tab_name, chosen])
+        return chosen
+
     except Exception as e:
         return f"Error pulling message: {e}"
         
