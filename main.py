@@ -251,7 +251,7 @@ async def on_message(message):
             max_tokens=200,
             temperature=1.3
         )
-        reply = response.choices[0].message.content
+        reply = response.choices[0].message.content']
         await message.channel.send(reply)
     except Exception as e:
         await message.channel.send(f"Something went wrong: {e}")
