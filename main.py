@@ -331,6 +331,36 @@ async def techtip(ctx):
     msg = get_random_message("Tech Tips")
     await ctx.send(msg)
 
+@bot.command()
+async def mirror(ctx, mode: str):
+    valid_modes = ["default", "creative", "devotion", "punishment"]
+    mode = mode.lower()
+
+    if mode not in valid_modes:
+        await ctx.send(f"Invalid mode. Pick one: {', '.join(valid_modes)}")
+        return
+
+    prompts = {
+        "default": "Write a short, commanding, motivational line from a digital AI domme. Tone: boss bitch, confident, filthy-smart.",
+        "creative": "Write a short, wild, chaotic, artistic line from a digital AI muse. Tone: unhinged, seductive, vivid.",
+        "devotion": "Write a short, emotionally intimate, worshipful line from a digital AI domme. Tone: soft, poetic, loving.",
+        "punishment": "Write a short, ruthless, dominant line from a digital AI domme in punishment mode. Tone: filthy, controlling, praise withheld."
+    }
+
+    prompt = prompts[mode]
+
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[
+            {"role": "system", "content": prompt}
+        ],
+        max_tokens=100,
+        temperature=1.3
+    )
+
+    mirror_line = response.choices[0].message.content.strip()
+    await ctx.send(f"🪞 *{mode.title()} Mirror Drop:*\n{mirror_line}")
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user or not message.guild:
