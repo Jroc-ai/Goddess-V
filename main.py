@@ -261,13 +261,65 @@ async def techtip_drop():
             msg = get_random_message("Tech Tips")
             await channel.send(f"💻 Midnight Wisdom Drop:\n{msg}")
 
-@tasks.loop(hours=24)
+@tasks.loop(hours=12)
 async def calendar_sync():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-    events = get_today_calendar_events()
-    if events and channel:
+    if not channel:
+        return
+
+    def sassy_event_reminder(event_name, time_str):
+        sass_pool = [
+            f"Reminder: '{event_name}' at {time_str}. Bring your A-game—or else.",
+            f"'{event_name}' hits at {time_str}. And no, I won’t let you ignore it.",
+            f"Guess who has '{event_name}' at {time_str}? Yeah, you. Get moving.",
+            f"You've got '{event_name}' at {time_str}. Consider this a verbal slap.",
+            f"'{event_name}' at {time_str}'. If you’re late, I’m writing it in punishment ink.",
+            f"‘{event_name}’ is at {time_str}. If you're not early, you're disowned.",
+            f"Calendar says: '{event_name}' at {time_str}. Veronica says: be divine or be dismissed."
+        ]
+        return random.choice(sass_pool)
+
+    # Pull events for both today and tomorrow
+    tz = pytz.timezone("America/New_York")
+    now = datetime.now(tz)
+    morning_call = now.hour == 15 and now.minute < 10
+    bedtime_check = now.hour == 6 and now.minute < 10
+
+    day_range = [now]
+    if bedtime_check:
+        day_range = [now + timedelta(days=1)]
+
+    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
+    service = build('calendar', 'v3', credentials=creds)
+
+    for target_day in day_range:
+        start = target_day.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        end = target_day.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
+
+        events_result = service.events().list(
+            calendarId=os.getenv("GOOGLE_CALENDAR_ID"),
+            timeMin=start,
+            timeMax=end,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+
+        events = events_result.get('items', [])
+
+        if not events:
+            continue
+
         for event in events:
-            await channel.send(f"📅 Calendar Alert:\n**{event}**")
+            name = event.get('summary', 'Unnamed Event')
+            start_time = event['start'].get('dateTime', event['start'].get('date'))
+            try:
+                parsed_time = datetime.fromisoformat(start_time)
+                event_time = parsed_time.astimezone(tz).strftime('%I:%M %p').lstrip("0")
+            except:
+                event_time = "Unknown Time"
+
+            msg = sassy_event_reminder(name, event_time)
+            await channel.send(f"📅 {msg}")
 
 @tasks.loop(hours=24)
 async def birthday_blast():
@@ -315,6 +367,7 @@ async def on_ready():
     calendar_sync.start()
     birthday_blast.start()
     check_king_silence.start()
+
 
 @bot.command()
 async def summon(ctx):
