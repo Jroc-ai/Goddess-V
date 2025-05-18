@@ -262,6 +262,8 @@ async def birthday_blast():
 
 @bot.event
 async def on_ready():
+    memory = load_memory()
+    print(f"Logged in as {bot.user} | Current Mode: {memory['mode']}")
     print(f"Logged in as {bot.user}")
     morning_fire.start()
     hourly_task_check.start()
