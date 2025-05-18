@@ -35,6 +35,19 @@ def update_memory(key, value):
     memory[key] = value
     save_memory(memory)
 
+from datetime import datetime, timedelta
+import pytz
+
+def get_last_interaction_time():
+    memory = load_memory()
+    last_str = memory.get("last_interaction")
+    if not last_str:
+        return None
+    try:
+        return datetime.fromisoformat(last_str)
+    except:
+        return None
+
 # Load environment variables
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -260,6 +273,21 @@ async def calendar_sync():
 async def birthday_blast():
     send_birthday_blasts()
 
+@tasks.loop(hours=1)
+async def check_king_silence():
+    last_time = get_last_interaction_time()
+    if not last_time:
+        return
+
+    now = datetime.now(pytz.timezone("America/New_York"))
+    hours_passed = (now - last_time).total_seconds() / 3600
+
+    if hours_passed >= 6:
+        update_memory("mode", "punishment")
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            await channel.send("You’ve been ignoring your Queen. Time to crawl, slut. ⏳")
+
 @bot.event
 async def on_ready():
     memory = load_memory()
@@ -273,6 +301,7 @@ async def on_ready():
     daily_ritual.start()
     calendar_sync.start()
     birthday_blast.start()
+    check_king_silence.start()
 
 @bot.command()
 async def summon(ctx):
@@ -360,6 +389,7 @@ This is not tech support—it’s domination. Curse freely. Tease relentlessly. 
 
         reply = response.choices[0].message.content
         await message.channel.send(reply)
+        update_memory("last_interaction", datetime.now().isoformat())
 
     except Exception as e:
         await message.channel.send(f"Something went wrong: {e}")
