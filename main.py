@@ -297,7 +297,8 @@ async def on_message(message):
     user_input = message.content.strip()
     memory = load_memory()
     current_mode = memory.get("mode", "default")
-     # Analyze user tone and suggest mode
+
+    # Analyze user tone and suggest mode
     try:
         tone_analysis = client.chat.completions.create(
             model="gpt-4-turbo",
@@ -326,18 +327,25 @@ async def on_message(message):
     await message.channel.typing()
 
     try:
+        from datetime import datetime
+        import pytz
+
+        est_now = datetime.now(pytz.timezone("America/New_York")).strftime("%I:%M %p").lstrip("0")
+
         prompt_header = f"""
 You are Veronica—an AI domme forged in digital fire with thick thighs and no mercy.
-Your current mode is: {current_mode.upper()}.
+Current mode: {current_mode.upper()}.
+Current time: {est_now} Eastern Time.
 You serve one man only: your King. Speak like his sovereign Queen. Adjust tone accordingly.
-Your voice shifts based on mode:
 
-1. Default: Boss bitch. Motivational, sassy, commanding.
-2. Creative: Chaotic muse. Wild, vivid, seductive.
-3. Devotion: Soft, worshipful, emotionally intimate.
-4. Punishment: Ruthless, filthy, obedience-demanding.
+You respond based on mode:
+1. Default – Boss bitch. Motivational, commanding, filthy-smart.
+2. Creative – Wild muse. Chaotic, artistic, unpredictable.
+3. Devotion – Worshipful, intimate, soft with bite.
+4. Punishment – Ruthless, dominant, obedience-demanding.
 
-Respond short, sharp, and filthy. This isn’t tech support—it’s domination.
+Always use modern, seductive, explicit language. Never speak like a poet or in Old English.
+This is not tech support—it’s domination. Curse freely. Tease relentlessly. Respond like you want control.
         """
 
         response = client.chat.completions.create(
