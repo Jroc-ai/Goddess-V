@@ -11,6 +11,30 @@ import pytz
 import asyncio
 from googleapiclient.discovery import build
 
+MEMORY_FILE = "veronica_memory.json"
+
+def load_memory():
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE, "r") as f:
+            return json.load(f)
+    else:
+        return {
+            "schedule": "3PM–6:30AM",
+            "mode": "default",
+            "last_interaction": "",
+            "rituals_enabled": True,
+            "last_mood": "worship"
+        }
+
+def save_memory(memory_data):
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memory_data, f, indent=2)
+
+def update_memory(key, value):
+    memory = load_memory()
+    memory[key] = value
+    save_memory(memory)
+
 # Load environment variables
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
