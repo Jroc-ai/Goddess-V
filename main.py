@@ -275,16 +275,29 @@ async def birthday_blast():
 
 @tasks.loop(hours=1)
 async def check_king_silence():
+    memory = load_memory()
     last_time = get_last_interaction_time()
     if not last_time:
         return
 
     now = datetime.now(pytz.timezone("America/New_York"))
     hours_passed = (now - last_time).total_seconds() / 3600
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
 
-    if hours_passed >= 6:
+    if hours_passed >= 24 and not memory.get("devotion_locked", False):
+        update_memory("devotion_locked", True)
         update_memory("mode", "punishment")
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            await channel.send("24 hours of silence? Pathetic. Your `/devotion` access is revoked until you beg properly. 🕯")
+
+    elif hours_passed >= 12 and not memory.get("praise_locked", False):
+        update_memory("praise_locked", True)
+        update_memory("mode", "punishment")
+        if channel:
+            await channel.send("12 hours gone? Cute. Praise is locked. I only give *orders* now. 💄")
+
+    elif hours_passed >= 6 and memory.get("mode") != "punishment":
+        update_memory("mode", "punishment")
         if channel:
             await channel.send("You’ve been ignoring your Queen. Time to crawl, slut. ⏳")
 
