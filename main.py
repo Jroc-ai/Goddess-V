@@ -297,6 +297,32 @@ async def on_message(message):
     user_input = message.content.strip()
     memory = load_memory()
     current_mode = memory.get("mode", "default")
+     # Analyze user tone and suggest mode
+    try:
+        tone_analysis = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "You are a mode-detecting assistant. Based on this user's message, determine the best Veronica mode: default, creative, devotion, or punishment. Reply with ONLY one word."
+                },
+                {
+                    "role": "user",
+                    "content": user_input
+                }
+            ],
+            max_tokens=10,
+            temperature=0.5
+        )
+
+        suggested_mode = tone_analysis.choices[0].message.content.strip().lower()
+        if suggested_mode in ["default", "creative", "devotion", "punishment"]:
+            update_memory("mode", suggested_mode)
+            current_mode = suggested_mode
+
+    except Exception as e:
+        print(f"Tone detection failed: {e}")
+
     await message.channel.typing()
 
     try:
