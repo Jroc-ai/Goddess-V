@@ -211,12 +211,29 @@ async def daily_ritual():
     now = datetime.now(pytz.timezone("America/New_York"))
     if now.hour == 16 and now.minute == 0:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        if channel:
-            msg, mode = get_today_ritual()
-            if msg:
-                await channel.send(f"🔮 Daily Ritual ({mode} Mode):\n{msg}")
-                log_ritual("Daily Ritual", mode)
+        if not channel:
+            return
 
+        try:
+            worksheet = sh.worksheet("Rituals")
+            data = worksheet.get_all_records()
+            today = now.strftime("%A").strip().lower()
+
+            eligible = [r for r in data if r['Day'].strip().lower() == today]
+
+            if not eligible:
+                return
+
+            chosen = random.choice(eligible)
+            category = chosen.get("Category", "Unknown")
+            message = chosen.get("Message", "")
+
+            if message:
+                await channel.send(f"🔮 Daily Ritual ({category}):\n{message}")
+                log_ritual("Daily Ritual", category)
+
+        except Exception as e:
+            print(f"Daily Ritual error: {e}")
 @tasks.loop(minutes=60)
 async def hourly_task_check():
     now = datetime.now(pytz.timezone("America/New_York"))
@@ -377,6 +394,7 @@ async def on_ready():
     birthday_blast.start()
     check_king_silence.start()
     evening_whisper.start()
+    ritual_engine.start()
 
 
 @bot.command()
