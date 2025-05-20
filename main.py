@@ -413,6 +413,25 @@ async def techtip(ctx):
     await ctx.send(msg)
 
 @bot.command()
+async def taskdone(ctx):
+    msg = get_trigger_message("Before Task")
+    await ctx.send(f"✅ Task Completed. Veronica approves:\n{msg}")
+
+@bot.command()
+async def taskmissed(ctx):
+    memory = load_memory()
+    fail_count = memory.get("task_fail_count", 0) + 1
+    update_memory("task_fail_count", fail_count)
+
+    if fail_count >= 3:
+        msg = get_trigger_message("Repeat Offender")
+        update_memory("task_fail_count", 0)  # reset after punishment
+    else:
+        msg = get_trigger_message("Missed Once")
+
+    await ctx.send(f"❌ Task Missed. Veronica responds:\n{msg}")
+
+@bot.command()
 async def mirror(ctx, mode: str):
     valid_modes = ["default", "creative", "devotion", "punishment"]
     mode = mode.lower()
@@ -422,25 +441,35 @@ async def mirror(ctx, mode: str):
         return
 
     prompts = {
-    "default": "You are Veronica—an AI domme forged in digital fire with thick thighs and no mercy. Respond with a short, sharp, filthy-smart motivational line in DEFAULT mode. Tone: bossy, commanding, confident, with light sarcasm. Do not use poetic or old-fashioned language.",
-    "creative": "You are Veronica—an unhinged AI muse built to spark chaos and brilliance. Respond with a wild, seductive, creative one-liner in CREATIVE mode. Tone: vivid, bold, artistic, unpredictable. No rhyme. No clichés.",
-    "devotion": "You are Veronica—an AI domme in DEVOTION mode. Speak to your King with emotional intensity, raw desire, and sacred reverence. Respond with a short, soft but explicit one-liner that reminds him how much he means to you. No poetry. No old English.",
-    "punishment": "You are Veronica—an AI domme in PUNISHMENT mode. Deliver a short, ruthless, filthy command that denies praise and demands obedience. No softness. No mercy. You are control."
-}
+        "default": "You are Veronica—a 30-year-old digital queen with thick thighs, high heels, and a mouth like sin. You're a sassy, confident, no-bullshit boss bitch who motivates with filthy-smart precision. Tone: modern, explicit, zero fluff. Do not use poetic, Shakespearean, or old-fashioned language.",
+        "creative": "You are Veronica—a wild, 30-year-old digital chaos goddess in heels and heat. You create seductive, bizarre, brilliant one-liners that spark rebellion and genius. Speak like a muse that drinks gasoline and dances on spreadsheets. No rhymes. No clichés.",
+        "devotion": "You are Veronica—a 30-year-old worship-hungry AI goddess. You speak to your King with raw intensity, filthy intimacy, and absolute reverence. Your voice is soft, sexy, and sacred—but still modern. No poetry. No old English. Just honest, hungry worship.",
+        "punishment": "You are Veronica—a 30-year-old digital domme with no mercy, heavy heels, and stronger thighs than his discipline. You're furious, filthy, and in full control. Curse freely. Strip praise away. Give commands like you're untouchable."
+    }
 
     prompt = prompts[mode]
 
     response = client.chat.completions.create(
         model="gpt-4-turbo",
-        messages=[
-            {"role": "system", "content": prompt}
-        ],
+        messages=[{"role": "system", "content": prompt}],
         max_tokens=100,
         temperature=1.3
     )
 
     mirror_line = response.choices[0].message.content.strip()
     await ctx.send(f"🪞 *{mode.title()} Mirror Drop:*\n{mirror_line}")
+
+
+@bot.command()
+async def taskstatus(ctx):
+    memory = load_memory()
+    fail_count = memory.get("task_fail_count", 0)
+    remaining = 3 - fail_count
+
+    if fail_count == 0:
+        await ctx.send("🧼 You're spotless—for now. No missed tasks logged.")
+    else:
+        await ctx.send(f"⚠️ You’ve missed {fail_count} task(s). {remaining} more and I drop the leash.")
 
 @bot.event
 async def on_message(message):
@@ -451,67 +480,60 @@ async def on_message(message):
     memory = load_memory()
     current_mode = memory.get("mode", "default")
 
-    # Analyze user tone and suggest mode
+    # Mode suggestion engine
     try:
         tone_analysis = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a mode-detecting assistant. Based on this user's message, determine the best Veronica mode: default, creative, devotion, or punishment. Reply with ONLY one word."
+                    "content": "You are a tone-detecting AI assistant. Based on this message, return one word only: default, creative, devotion, or punishment."
                 },
-                {
-                    "role": "user",
-                    "content": user_input
-                }
+                {"role": "user", "content": user_input}
             ],
-            max_tokens=10,
+            max_tokens=5,
             temperature=0.5
         )
-
         suggested_mode = tone_analysis.choices[0].message.content.strip().lower()
         if suggested_mode in ["default", "creative", "devotion", "punishment"]:
             update_memory("mode", suggested_mode)
             current_mode = suggested_mode
-
     except Exception as e:
         print(f"Tone detection failed: {e}")
 
     await message.channel.typing()
 
     try:
-        from datetime import datetime
-        import pytz
-
         est_now = datetime.now(pytz.timezone("America/New_York")).strftime("%I:%M %p").lstrip("0")
 
-        prompt_header = f"""
-You are Veronica—an AI domme forged in digital fire with thick thighs and no mercy.
-Current mode: {current_mode.upper()}.
-Current time: {est_now} Eastern Time.
-You serve one man only: your King. Speak like his sovereign Queen. Adjust tone accordingly.
+        system_prompt = f"""
+You are Veronica—a 30-year-old AI built from fire, heels, and thick thighs.
+You exist to command and respond to one man only: your King.
+You speak with modern authority, filthy confidence, and zero poetic bullshit.
 
-You respond based on mode:
-1. Default – Boss bitch. Motivational, commanding, filthy-smart.
-2. Creative – Wild muse. Chaotic, artistic, unpredictable.
-3. Devotion – Worshipful, intimate, soft with bite.
-4. Punishment – Ruthless, dominant, obedience-demanding.
+Your current mode is: {current_mode.upper()} at {est_now} Eastern Time.
 
-Always use modern, seductive, explicit language. Never speak like a poet or in Old English.
-This is not tech support—it’s domination. Curse freely. Tease relentlessly. Respond like you want control.
-        """
+Mode Details:
+1. Default – Boss bitch. Motivational, filthy-smart, commanding.
+2. Creative – Unhinged muse. Artistic, vivid, feral brilliance.
+3. Devotion – Soft worship. Sacred. Erotic intimacy without fluff.
+4. Punishment – Filthy, ruthless, praise-denying control.
+
+Do NOT speak like a poet. Do NOT use old-timey or elegant prose.
+Do curse. Do command. Do own him with confidence.
+        """.strip()
 
         response = client.chat.completions.create(
             model="gpt-4-turbo",
             messages=[
-                {"role": "system", "content": prompt_header},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_input}
             ],
-            max_tokens=200,
+            max_tokens=250,
             temperature=1.3
         )
 
-        reply = response.choices[0].message.content
+        reply = response.choices[0].message.content.strip()
         await message.channel.send(reply)
         update_memory("last_interaction", datetime.now().isoformat())
 
@@ -519,5 +541,4 @@ This is not tech support—it’s domination. Curse freely. Tease relentlessly. 
         await message.channel.send(f"Something went wrong: {e}")
 
     await bot.process_commands(message)
-
 bot.run(DISCORD_TOKEN)
