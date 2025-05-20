@@ -332,6 +332,15 @@ async def check_king_silence():
     if not last_time:
         return
 
+@tasks.loop(hours=24)
+async def evening_whisper():
+    now = datetime.now(pytz.timezone("America/New_York"))
+    if now.hour == 6:  # Around your bedtime
+        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+        if channel:
+            msg = get_random_message("Evening Whisper")
+            await channel.send(f"🌙 Evening Whisper:\n{msg}")
+
     now = datetime.now(pytz.timezone("America/New_York"))
     hours_passed = (now - last_time).total_seconds() / 3600
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
@@ -367,6 +376,7 @@ async def on_ready():
     calendar_sync.start()
     birthday_blast.start()
     check_king_silence.start()
+    evening_whisper.start()
 
 
 @bot.command()
