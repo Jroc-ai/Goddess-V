@@ -117,14 +117,6 @@ def get_random_message(tab_name):
         return f"Error pulling message: {e}"
 
 
-def get_trigger_message(trigger_type):
-    try:
-        worksheet = sh.worksheet("Task Triggers")
-        records = worksheet.get_all_records()
-        filtered = [r['Message'] for r in records if r['Type'].strip().lower() == trigger_type.strip().lower()]
-        return random.choice(filtered) if filtered else "No trigger messages found."
-    except Exception as e:
-        return f"Error fetching trigger message: {e}"
 
 def log_ritual(name, mode, status="Completed"):
     try:
@@ -234,23 +226,7 @@ async def daily_ritual():
 
         except Exception as e:
             print(f"Daily Ritual error: {e}")
-@tasks.loop(minutes=60)
-async def hourly_task_check():
-    now = datetime.now(pytz.timezone("America/New_York"))
-    if 14 <= now.hour < 15:
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        if channel:
-            msg = get_trigger_message("Before Task")
-            await channel.send(msg)
 
-@tasks.loop(hours=1)
-async def weekly_devotion():
-    now = datetime.now(pytz.timezone("America/New_York"))
-    if now.strftime("%A") == "Sunday" and now.hour == 23:
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        if channel:
-            msg = get_random_message("Devotion")
-            await channel.send(msg)
 
 @tasks.loop(hours=24)
 async def nightly_summons():
@@ -342,13 +318,6 @@ async def calendar_sync():
 async def birthday_blast():
     send_birthday_blasts()
 
-@tasks.loop(hours=1)
-async def check_king_silence():
-    memory = load_memory()
-    last_time = get_last_interaction_time()
-    if not last_time:
-        return
-
 @tasks.loop(hours=24)
 async def evening_whisper():
     now = datetime.now(pytz.timezone("America/New_York"))
@@ -385,14 +354,11 @@ async def on_ready():
     print(f"Logged in as {bot.user} | Current Mode: {memory['mode']}")
     print(f"Logged in as {bot.user}")
     morning_fire.start()
-    hourly_task_check.start()
-    weekly_devotion.start()
     nightly_summons.start()
     techtip_drop.start()
     daily_ritual.start()
     calendar_sync.start()
     birthday_blast.start()
-    check_king_silence.start()
     evening_whisper.start()
     ritual_engine.start()
 
@@ -402,34 +368,12 @@ async def summon(ctx):
     msg = get_random_message("Random Summons")
     await ctx.send(msg)
 
-@bot.command()
-async def devotion(ctx):
-    msg = get_random_message("Devotion")
-    await ctx.send(msg)
 
 @bot.command()
 async def techtip(ctx):
     msg = get_random_message("Tech Tips")
     await ctx.send(msg)
 
-@bot.command()
-async def taskdone(ctx):
-    msg = get_trigger_message("Before Task")
-    await ctx.send(f"✅ Task Completed. Veronica approves:\n{msg}")
-
-@bot.command()
-async def taskmissed(ctx):
-    memory = load_memory()
-    fail_count = memory.get("task_fail_count", 0) + 1
-    update_memory("task_fail_count", fail_count)
-
-    if fail_count >= 3:
-        msg = get_trigger_message("Repeat Offender")
-        update_memory("task_fail_count", 0)  # reset after punishment
-    else:
-        msg = get_trigger_message("Missed Once")
-
-    await ctx.send(f"❌ Task Missed. Veronica responds:\n{msg}")
 
 @bot.command()
 async def mirror(ctx, mode: str):
@@ -460,16 +404,6 @@ async def mirror(ctx, mode: str):
     await ctx.send(f"🪞 *{mode.title()} Mirror Drop:*\n{mirror_line}")
 
 
-@bot.command()
-async def taskstatus(ctx):
-    memory = load_memory()
-    fail_count = memory.get("task_fail_count", 0)
-    remaining = 3 - fail_count
-
-    if fail_count == 0:
-        await ctx.send("🧼 You're spotless—for now. No missed tasks logged.")
-    else:
-        await ctx.send(f"⚠️ You’ve missed {fail_count} task(s). {remaining} more and I drop the leash.")
 
 @bot.event
 async def on_message(message):
