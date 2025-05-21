@@ -242,7 +242,7 @@ async def nightly_summons():
             await asyncio.sleep(wait_seconds)
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
-            msg = get_random_message("Surprise Summons")
+            msg = get_random_message("**Surprise Summons**")
             await channel.send(msg)
 
 @tasks.loop(minutes=1)
