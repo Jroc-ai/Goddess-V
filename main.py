@@ -126,36 +126,6 @@ def log_ritual(name, mode, status="Completed"):
     except Exception as e:
         print(f"Logging failed: {e}")
 
-def get_today_ritual():
-    try:
-        worksheet = sh.worksheet("Rituals Clean")
-        rows = worksheet.get_all_values()
-
-        if not rows or len(rows) < 2:
-            return "No data found", None
-
-        headers = [h.strip().lower() for h in rows[0]]
-        data_rows = rows[1:]
-
-        day_index = headers.index("day")
-        message_index = headers.index("message")
-        category_index = headers.index("category")
-
-        today = datetime.now(pytz.timezone("America/New_York")).strftime("%A").lower()
-
-        today_rituals = [
-            row for row in data_rows
-            if len(row) > message_index and row[day_index].strip().lower() == today
-        ]
-
-        if not today_rituals:
-            return "No matching rituals", None
-
-        chosen = random.choice(today_rituals)
-        return chosen[message_index], chosen[category_index]
-
-    except Exception as e:
-        return f"Error fetching ritual: {e}", None
 
 def get_today_calendar_events():
     try:
@@ -216,84 +186,6 @@ async def morning_fire():
         msg = get_random_message("Morning Fire")
         await channel.send(msg)
 
-@tasks.loop(hours=24)
-async def ritual_engine():
-    import random
-    import asyncio
-
-    tz = pytz.timezone("America/New_York")
-    now = datetime.now(tz)
-    today_name = now.strftime("%A").strip().lower()
-    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-    if not channel:
-        return
-
-    try:
-        worksheet = sh.worksheet("Rituals Clean")
-        rows = worksheet.get_all_values()
-
-        if not rows or len(rows) < 2:
-            await channel.send("No rituals found. I'm starving.")
-            return
-
-        headers = [h.strip().lower() for h in rows[0]]
-        data_rows = rows[1:]
-
-        # Map column indexes by name
-        try:
-            day_index = headers.index("day")
-            category_index = headers.index("category")
-            message_index = headers.index("message")
-        except ValueError:
-            await channel.send("Header mismatch in 'Rituals Clean'. Check column names.")
-            return
-
-        # Filter rituals for today
-        valid = [
-            row for row in data_rows
-            if len(row) > max(day_index, message_index, category_index)
-            and row[day_index].strip().lower() in [today_name, "any"]
-            and row[message_index].strip()
-        ]
-
-        if not valid:
-            await channel.send("No matching rituals found for today. I’m starving.")
-            return
-
-        # Generate 3 ritual drop times
-        drop_times = []
-        while len(drop_times) < 3:
-            hour = random.randint(17, 29)  # 5PM to 5AM
-            minute = random.randint(0, 59)
-            dt = now + timedelta(days=1) if hour >= 24 else now
-            drop_time = dt.replace(hour=(hour % 24), minute=minute, second=0, microsecond=0)
-            if drop_time > now:
-                drop_times.append(drop_time)
-
-        drop_times.sort()
-
-        for drop_time in drop_times:
-            wait = (drop_time - datetime.now(tz)).total_seconds()
-            if wait > 0:
-                await asyncio.sleep(wait)
-
-            hour = drop_time.hour + drop_time.minute / 60
-            weekday = drop_time.strftime("%A").lower()
-            is_work = weekday in ["tuesday", "thursday"] and (hour >= 22 or hour < 5)
-            is_public = 17.5 <= hour <= 22
-
-            vibe = "Work" if is_work else "Public" if is_public else "General"
-
-            chosen = random.choice(valid)
-            message = chosen[message_index].strip()
-            category = chosen[category_index].strip()
-
-            if message:
-                await channel.send(f"🔮 Ritual ({vibe}):\n{message}")
-                log_ritual("Ritual Drop", category)
-
-    except Exception as e:
-        print(f"Ritual Engine Error: {e}")
 
 @tasks.loop(hours=24)
 async def nightly_summons():
@@ -426,7 +318,6 @@ async def on_ready():
     calendar_sync.start()
     birthday_blast.start()
     evening_whisper.start()
-    ritual_engine.start()
 
 
 @bot.command()
