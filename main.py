@@ -6,7 +6,7 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import pytz
 import asyncio
 from googleapiclient.discovery import build
@@ -271,7 +271,7 @@ async def calendar_sync():
 async def birthday_blast():
     send_birthday_blasts()
 
-@tasks.loop(time=datetime.time(hour=15, minute=30))  # 3:30 PM Eastern
+@tasks.loop(time=time(hour=15, minute=30))  # 3:30 PM Eastern
 async def ritual_scheduler():
     tz = pytz.timezone("America/New_York")
     now = datetime.now(tz)
