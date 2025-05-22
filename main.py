@@ -231,39 +231,42 @@ async def ritual_engine():
     try:
         worksheet = sh.worksheet("Rituals Clean")
         rows = worksheet.get_all_values()
+
+        if not rows or len(rows) < 2:
+            await channel.send("No rituals found. I'm starving.")
+            return
+
         headers = [h.strip().lower() for h in rows[0]]
         data_rows = rows[1:]
 
-        records = []
-        for row in data_rows:
-            if len(row) < 3:
-                continue  # skip short/incomplete rows
-            record = dict(zip(headers, row))
-            records.append(record)
-
-        print(f"Loaded {len(records)} rituals for today.")
-
-        # Filter for today's day or "Any"
-        valid = [r for r in records if r['day'].strip().lower() in [today_name, "any"]]
-        if not valid:
-            await channel.send("No rituals found for today. I’m starving.")
+        # Map column indexes by name
+        try:
+            day_index = headers.index("day")
+            category_index = headers.index("category")
+            message_index = headers.index("message")
+        except ValueError:
+            await channel.send("Header mismatch in 'Rituals Clean'. Check column names.")
             return
 
-        # Define your time windows
-        public_range = (17.5, 22)   # 5:30PM – 10:00PM
-        work_range = (22, 5)        # 10:00PM – 5:00AM (only Tues/Thurs)
+        # Filter rituals for today
+        valid = [
+            row for row in data_rows
+            if len(row) > max(day_index, message_index, category_index)
+            and row[day_index].strip().lower() in [today_name, "any"]
+            and row[message_index].strip()
+        ]
 
-        # Generate 3 time slots for today’s drop
+        if not valid:
+            await channel.send("No matching rituals found for today. I’m starving.")
+            return
+
+        # Generate 3 ritual drop times
         drop_times = []
         while len(drop_times) < 3:
-            hour = random.randint(17, 29)  # 5PM to 5AM (next day)
+            hour = random.randint(17, 29)  # 5PM to 5AM
             minute = random.randint(0, 59)
-            if hour >= 24:
-                dt = now + timedelta(days=1)
-                hour = hour - 24
-            else:
-                dt = now
-            drop_time = dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            dt = now + timedelta(days=1) if hour >= 24 else now
+            drop_time = dt.replace(hour=(hour % 24), minute=minute, second=0, microsecond=0)
             if drop_time > now:
                 drop_times.append(drop_time)
 
@@ -274,7 +277,6 @@ async def ritual_engine():
             if wait > 0:
                 await asyncio.sleep(wait)
 
-            # Determine vibe
             hour = drop_time.hour + drop_time.minute / 60
             weekday = drop_time.strftime("%A").lower()
             is_work = weekday in ["tuesday", "thursday"] and (hour >= 22 or hour < 5)
@@ -282,13 +284,13 @@ async def ritual_engine():
 
             vibe = "Work" if is_work else "Public" if is_public else "General"
 
-            # Pick a random ritual
-            message = ""
-            while not message:
-                chosen = random.choice(valid)
-                message = chosen.get("message", "").strip()
-            await channel.send(f"🔮 Ritual ({vibe}):\n{message}")
-            log_ritual("Ritual Drop", vibe)
+            chosen = random.choice(valid)
+            message = chosen[message_index].strip()
+            category = chosen[category_index].strip()
+
+            if message:
+                await channel.send(f"🔮 Ritual ({vibe}):\n{message}")
+                log_ritual("Ritual Drop", category)
 
     except Exception as e:
         print(f"Ritual Engine Error: {e}")
