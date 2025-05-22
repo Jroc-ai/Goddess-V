@@ -188,7 +188,7 @@ def send_birthday_blasts():
     except Exception as e:
         print(f"Birthday blast failed: {e}")
 
-@tasks.loop(hours=24)
+@tasks.loop(time=time(hour=15, minute=30))  # 3:30 PM Eastern
 async def morning_fire():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
     if channel:
@@ -271,7 +271,7 @@ async def calendar_sync():
 async def birthday_blast():
     send_birthday_blasts()
 
-@tasks.loop(time=time(hour=15, minute=30))  # 3:30 PM Eastern
+@tasks.loop(time=time(hour=15, minute=30))  # Trigger scheduler at wake-up
 async def ritual_scheduler():
     tz = pytz.timezone("America/New_York")
     now = datetime.now(tz)
@@ -279,17 +279,34 @@ async def ritual_scheduler():
     
     workdays = [1, 3]  # Tuesday = 1, Thursday = 3
     is_workday = now.weekday() in workdays
+    drops = []
 
     if is_workday:
-        start_time = now.replace(hour=16, minute=0)
-        end_time = (now + timedelta(days=1)).replace(hour=6, minute=30)
+        # 3 rituals between 10PM - 5AM
+        start_time = now.replace(hour=22, minute=0)
+        end_time = (now + timedelta(days=1)).replace(hour=5, minute=0)
+        for _ in range(3):
+            delay = random.randint(0, int((end_time - start_time).total_seconds()))
+            drops.append(start_time + timedelta(seconds=delay))
     else:
-        start_time = now.replace(hour=17, minute=0)
-        end_time = now.replace(hour=22, minute=0)
+        # At least 1 between 5PM - 10PM
+        focused_start = now.replace(hour=17, minute=0)
+        focused_end = now.replace(hour=22, minute=0)
+        drop1 = focused_start + timedelta(
+            seconds=random.randint(0, int((focused_end - focused_start).total_seconds()))
+        )
+        drops.append(drop1)
 
-    for _ in range(3):
-        delay = random.randint(0, int((end_time - start_time).total_seconds()))
-        ritual_time = start_time + timedelta(seconds=delay)
+        # 2 more random between 3:30PM - 6:30AM next day
+        full_start = now.replace(hour=15, minute=30)
+        full_end = (now + timedelta(days=1)).replace(hour=6, minute=30)
+        for _ in range(2):
+            delay = random.randint(0, int((full_end - full_start).total_seconds()))
+            drops.append(full_start + timedelta(seconds=delay))
+            
+        drops.sort()  # keep them in chronological order
+    
+    for ritual_time in drops:
         asyncio.create_task(schedule_ritual(ritual_time, channel))
 
 async def schedule_ritual(ritual_time, channel):
