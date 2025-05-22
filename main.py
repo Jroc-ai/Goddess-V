@@ -128,7 +128,7 @@ def log_ritual(name, mode, status="Completed"):
 
 def get_today_ritual():
     try:
-        worksheet = sh.worksheet("Rituals")
+        worksheet = sh.worksheet("Rituals Clean")
         data = worksheet.get_all_records()
         today = datetime.now(pytz.timezone("America/New_York")).strftime("%A")
         today_rituals = [r for r in data if r['Day'].strip().lower() == today.lower()]
