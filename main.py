@@ -130,12 +130,15 @@ def get_today_ritual():
     try:
         worksheet = sh.worksheet("Rituals Clean")
         data = worksheet.get_all_records()
-        today = datetime.now(pytz.timezone("America/New_York")).strftime("%A")
-        today_rituals = [r for r in data if r['Day'].strip().lower() == today.lower()]
+        today = datetime.now(pytz.timezone("America/New_York")).strftime("%A").lower()
+        today_rituals = [r for r in data if r['Day'].strip().lower() == today]
+
         if not today_rituals:
             return None, None
+
         chosen = random.choice(today_rituals)
-        return chosen['Message'], chosen['Mode']
+        return chosen['Message'], chosen['Category']  # Not 'Mode'
+
     except Exception as e:
         return f"Error fetching ritual: {e}", None
 
