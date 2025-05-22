@@ -129,15 +129,30 @@ def log_ritual(name, mode, status="Completed"):
 def get_today_ritual():
     try:
         worksheet = sh.worksheet("Rituals Clean")
-        data = worksheet.get_all_records()
+        rows = worksheet.get_all_values()
+
+        if not rows or len(rows) < 2:
+            return "No data found", None
+
+        headers = [h.strip().lower() for h in rows[0]]
+        data_rows = rows[1:]
+
+        day_index = headers.index("day")
+        message_index = headers.index("message")
+        category_index = headers.index("category")
+
         today = datetime.now(pytz.timezone("America/New_York")).strftime("%A").lower()
-        today_rituals = [r for r in data if r['Day'].strip().lower() == today]
+
+        today_rituals = [
+            row for row in data_rows
+            if len(row) > message_index and row[day_index].strip().lower() == today
+        ]
 
         if not today_rituals:
-            return None, None
+            return "No matching rituals", None
 
         chosen = random.choice(today_rituals)
-        return chosen['Message'], chosen['Category']  # Not 'Mode'
+        return chosen[message_index], chosen[category_index]
 
     except Exception as e:
         return f"Error fetching ritual: {e}", None
