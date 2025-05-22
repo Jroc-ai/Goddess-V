@@ -212,7 +212,8 @@ async def ritual_engine():
 
     try:
         worksheet = sh.worksheet("Rituals")
-        records = worksheet.get_all_records()
+        records = worksheet.get_all_records(head=1, default_blank="")
+        print(f"Loaded {len(records)} rituals for today.")
 
         # Filter for today's day or "Any"
         valid = [r for r in records if r['Day'].strip().lower() in [today_name, "any"]]
