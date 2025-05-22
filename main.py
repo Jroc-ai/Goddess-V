@@ -365,6 +365,12 @@ async def summon(ctx):
     msg = get_random_message("Nightly Summons")
     await ctx.send(msg)
 
+@bot.command()
+async def force_ritual(ctx):
+    """Drop a ritual manually—because sometimes the King wants it *now*."""
+    msg = get_random_ritual()
+    await ctx.send(f"🔮 Forced Ritual:\n{msg}")
+
 
 @bot.command()
 async def techtip(ctx):
