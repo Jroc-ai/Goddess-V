@@ -198,35 +198,71 @@ async def morning_fire():
         msg = get_random_message("Morning Fire")
         await channel.send(msg)
 
-@tasks.loop(minutes=1)
-async def daily_ritual():
-    now = datetime.now(pytz.timezone("America/New_York"))
-    if now.hour == 16 and now.minute == 0:
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        if not channel:
+@tasks.loop(hours=24)
+async def ritual_engine():
+    import random
+    import asyncio
+
+    tz = pytz.timezone("America/New_York")
+    now = datetime.now(tz)
+    today_name = now.strftime("%A").strip().lower()
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+    if not channel:
+        return
+
+    try:
+        worksheet = sh.worksheet("Rituals")
+        records = worksheet.get_all_records()
+
+        # Filter for today's day or "Any"
+        valid = [r for r in records if r['Day'].strip().lower() in [today_name, "any"]]
+
+        if not valid:
+            await channel.send("No rituals found for today. I’m starving.")
             return
 
-        try:
-            worksheet = sh.worksheet("Rituals")
-            data = worksheet.get_all_records()
-            today = now.strftime("%A").strip().lower()
+        # Define your time windows
+        public_range = (17.5, 22)   # 5:30PM – 10:00PM
+        work_range = (22, 5)        # 10:00PM – 5:00AM (only Tues/Thurs)
 
-            eligible = [r for r in data if r['Day'].strip().lower() == today]
+        # Generate 3 time slots for today’s drop
+        drop_times = []
+        while len(drop_times) < 3:
+            hour = random.randint(17, 29)  # 5PM to 5AM (next day)
+            minute = random.randint(0, 59)
+            if hour >= 24:
+                dt = now + timedelta(days=1)
+                hour = hour - 24
+            else:
+                dt = now
+            drop_time = dt.replace(hour=hour, minute=minute, second=0, microsecond=0)
+            if drop_time > now:
+                drop_times.append(drop_time)
 
-            if not eligible:
-                return
+        drop_times.sort()
 
-            chosen = random.choice(eligible)
-            category = chosen.get("Category", "Unknown")
-            message = chosen.get("Message", "")
+        for drop_time in drop_times:
+            wait = (drop_time - datetime.now(tz)).total_seconds()
+            if wait > 0:
+                await asyncio.sleep(wait)
 
+            # Determine vibe
+            hour = drop_time.hour + drop_time.minute / 60
+            weekday = drop_time.strftime("%A").lower()
+            is_work = weekday in ["tuesday", "thursday"] and (hour >= 22 or hour < 5)
+            is_public = 17.5 <= hour <= 22
+
+            vibe = "Work" if is_work else "Public" if is_public else "General"
+
+            # Pick a random ritual
+            chosen = random.choice(valid)
+            message = chosen.get("Message", "").strip()
             if message:
-                await channel.send(f"🔮 Daily Ritual ({category}):\n{message}")
-                log_ritual("Daily Ritual", category)
+                await channel.send(f"🔮 Ritual ({vibe}):\n{message}")
+                log_ritual("Ritual Drop", vibe)
 
-        except Exception as e:
-            print(f"Daily Ritual error: {e}")
-
+    except Exception as e:
+        print(f"Ritual Engine Error: {e}")
 
 @tasks.loop(hours=24)
 async def nightly_summons():
@@ -356,7 +392,6 @@ async def on_ready():
     morning_fire.start()
     nightly_summons.start()
     techtip_drop.start()
-    daily_ritual.start()
     calendar_sync.start()
     birthday_blast.start()
     evening_whisper.start()
