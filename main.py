@@ -117,16 +117,6 @@ def get_random_message(tab_name):
         return f"Error pulling message: {e}"
 
 
-
-def log_ritual(name, mode, status="Completed"):
-    try:
-        worksheet = sh.worksheet("Ritual Log")
-        timestamp = datetime.now(pytz.timezone("America/New_York")).strftime("%Y-%m-%d %H:%M %Z")
-        worksheet.append_row([name, timestamp, mode, status])
-    except Exception as e:
-        print(f"Logging failed: {e}")
-
-
 def get_today_calendar_events():
     try:
         creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
