@@ -229,7 +229,7 @@ async def ritual_engine():
         return
 
     try:
-        worksheet = sh.worksheet("Rituals")
+        worksheet = sh.worksheet("Rituals Clean")
         rows = worksheet.get_all_values()
         headers = [h.strip().lower() for h in rows[0]]
         data_rows = rows[1:]
