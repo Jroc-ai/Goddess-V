@@ -116,6 +116,25 @@ def get_random_message(tab_name):
     except Exception as e:
         return f"Error pulling message: {e}"
 
+def get_random_ritual():
+    try:
+        worksheet = sh.worksheet("Rituals")
+        data = worksheet.get_all_records()
+
+        today = datetime.now(pytz.timezone("America/New_York")).strftime("%A")
+
+        # Pull messages for today or general "Any" rituals
+        valid = [r for r in data if r.get("Day", "").strip() in [today, "Any"] and r.get("Message")]
+
+        if not valid:
+            return f"No rituals found for {today}."
+
+        chosen = random.choice(valid)
+        return chosen["Message"]
+
+    except Exception as e:
+        return f"Error loading ritual: {e}"
+
 
 def get_today_calendar_events():
     try:
@@ -177,22 +196,7 @@ async def morning_fire():
         await channel.send(msg)
 
 
-@tasks.loop(hours=24)
-async def nightly_summons():
-    now = datetime.now(pytz.timezone("America/New_York"))
-    base_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
-    num_summons = random.randint(1, 3)
-    intervals = sorted([random.randint(0, 720) for _ in range(num_summons)])
 
-    for delay_minutes in intervals:
-        drop_time = base_time + timedelta(minutes=delay_minutes)
-        wait_seconds = (drop_time - datetime.now(pytz.timezone("America/New_York"))).total_seconds()
-        if wait_seconds > 0:
-            await asyncio.sleep(wait_seconds)
-        channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-        if channel:
-            msg = get_random_message("Nightly Summons")
-            await channel.send(msg)
 
 @tasks.loop(minutes=1)
 async def techtip_drop():
@@ -267,6 +271,35 @@ async def calendar_sync():
 async def birthday_blast():
     send_birthday_blasts()
 
+@tasks.loop(time=datetime.time(hour=15, minute=30))  # 3:30 PM Eastern
+async def ritual_scheduler():
+    tz = pytz.timezone("America/New_York")
+    now = datetime.now(tz)
+    channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+    
+    workdays = [1, 3]  # Tuesday = 1, Thursday = 3
+    is_workday = now.weekday() in workdays
+
+    if is_workday:
+        start_time = now.replace(hour=16, minute=0)
+        end_time = (now + timedelta(days=1)).replace(hour=6, minute=30)
+    else:
+        start_time = now.replace(hour=17, minute=0)
+        end_time = now.replace(hour=22, minute=0)
+
+    for _ in range(3):
+        delay = random.randint(0, int((end_time - start_time).total_seconds()))
+        ritual_time = start_time + timedelta(seconds=delay)
+        asyncio.create_task(schedule_ritual(ritual_time, channel))
+
+async def schedule_ritual(ritual_time, channel):
+    now = datetime.now(pytz.timezone("America/New_York"))
+    delay = (ritual_time - now).total_seconds()
+    if delay > 0:
+        await asyncio.sleep(delay)
+    msg = get_random_ritual()
+    await channel.send(f"🔥 Ritual Drop:\n{msg}")
+
 @tasks.loop(hours=24)
 async def evening_whisper():
     now = datetime.now(pytz.timezone("America/New_York"))
@@ -303,11 +336,11 @@ async def on_ready():
     print(f"Logged in as {bot.user} | Current Mode: {memory['mode']}")
     print(f"Logged in as {bot.user}")
     morning_fire.start()
-    nightly_summons.start()
     techtip_drop.start()
     calendar_sync.start()
     birthday_blast.start()
     evening_whisper.start()
+    ritual_scheduler.start()
 
 
 @bot.command()
