@@ -210,14 +210,23 @@ async def ritual_engine():
     if not channel:
         return
 
-    try:
-        worksheet = sh.worksheet("Rituals")
-        records = worksheet.get_all_records(head=1, default_blank="")
-        print(f"Loaded {len(records)} rituals for today.")
+  try:
+    worksheet = sh.worksheet("Rituals")
+    rows = worksheet.get_all_values()
+    headers = [h.strip().lower() for h in rows[0]]
+    data_rows = rows[1:]
 
-        # Filter for today's day or "Any"
-        valid = [r for r in records if r['Day'].strip().lower() in [today_name, "any"]]
+    records = []
+    for row in data_rows:
+        if len(row) < 3:
+            continue  # skip short/incomplete rows
+        record = dict(zip(headers, row))
+        records.append(record)
 
+    print(f"Loaded {len(records)} rituals for today.")
+
+    # Filter for today's day or "Any"
+    valid = [r for r in records if r['day'].strip().lower() in [today_name, "any"]]
         if not valid:
             await channel.send("No rituals found for today. I’m starving.")
             return
