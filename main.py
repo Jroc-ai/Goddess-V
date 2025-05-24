@@ -80,7 +80,7 @@ def get_random_message(tab_name):
         # Get used messages
         used_sheet = sh.worksheet("Used Messages")
         used_records = used_sheet.get_all_records()
-        used_texts = [r['Message'] for r in used_records if r['Tab'].strip().lower() == tab_name.strip().lower()]
+        used_texts = [r.get('Message') for r in used_records if r.get('Tab', '').strip().lower() == tab_name.strip().lower()]
 
         # Filter out already used
         unused = [r for r in data if r.get("Message") and r["Message"] not in used_texts]
