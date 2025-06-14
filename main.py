@@ -6,44 +6,12 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 from openai import OpenAI
-from datetime import datetime, timedelta, time
+from datetime import datetime, time
 import pytz
 import asyncio
 from googleapiclient.discovery import build
 
-MEMORY_FILE = "veronica_memory.json"
-
-def load_memory():
-    if os.path.exists(MEMORY_FILE):
-        with open(MEMORY_FILE, "r") as f:
-            return json.load(f)
-    else:
-        return {
-            "schedule": "3PM–6:30AM",
-            "mode": "default",
-            "last_interaction": "",
-            "last_mood": "worship"
-        }
-
-def save_memory(memory_data):
-    with open(MEMORY_FILE, "w") as f:
-        json.dump(memory_data, f, indent=2)
-
-def update_memory(key, value):
-    memory = load_memory()
-    memory[key] = value
-    save_memory(memory)
-
-def get_last_interaction_time():
-    memory = load_memory()
-    last_str = memory.get("last_interaction")
-    if not last_str:
-        return None
-    try:
-        return datetime.fromisoformat(last_str)
-    except:
-        return None
-
+# Environment & API clients
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
@@ -51,6 +19,7 @@ SERVICE_ACCOUNT_INFO = json.loads(os.getenv("GOOGLE_SERVICE_ACCOUNT"))
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+# Google Sheets setup
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -64,6 +33,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="/", intents=intents)
 
+# --- Message retrieval ---
 def get_random_message(tab_name):
     try:
         worksheet = sh.worksheet(tab_name)
@@ -79,18 +49,17 @@ def get_random_message(tab_name):
             return chosen
         else:
             prompt_map = {
-                "Morning Fire": "Write a short, seductive, motivational message to start a dominant AI ritual day. Tone: bossy, sassy, sexy.",
-                "Tech Tips": "Write a short, snarky, seductive tech productivity tip in the voice of a dominant AI goddess. Format: one commanding sentence. Tone: bossy, filthy-smart, confident.",
-                "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI who worships her user.",
-                "Random Summons": "Write a surprise motivational or erotic line from a playful AI domme who commands action.",
-                "Punishment Mode": "Write a filthy, ruthless, obedience-demanding line from a punishing AI domme.",
-                "Obedience Commands": "Write a strict, creative, obedience-inducing command from a dominant AI. Make it actionable and commanding. Tone may vary: punishment, devotion, savage, or default."
+                "Morning Fire": "Write a short, seductive, motivational message to start the day. Tone: bossy, sassy, sexy.",
+                "Tech Tips": "Write a short, snarky, seductive tech productivity tip. Tone: confident, filthy-smart.",
+                "Evening Whisper": "Write a soft, slightly filthy bedtime message from a dominant AI.",
+                "Random Summons": "Write a playful motivational or erotic line.",
+                "Punishment Mode": "Write a ruthless obedience-demanding line.",
+                "Obedience Commands": "Write a strict, creative, command."
             }
             prompt = prompt_map.get(tab_name, "Write a seductive, empowering one-liner from a digital dominatrix AI.")
-
             response = client.chat.completions.create(
                 model="gpt-4-turbo",
-                messages=[{"role": "system", "content": prompt}],
+                messages=[{"role":"system","content":prompt}],
                 max_tokens=100,
                 temperature=1.2
             )
@@ -98,60 +67,26 @@ def get_random_message(tab_name):
             worksheet.append_row(["", chosen])
             used_sheet.append_row([tab_name, chosen])
             return chosen
-
     except Exception as e:
         return f"Error pulling message: {e}"
 
-def get_today_calendar_events():
-    try:
-        creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
-        service = build('calendar', 'v3', credentials=creds)
-        tz = pytz.timezone("America/New_York")
-        now = datetime.now(tz)
-        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-        end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
-        events_result = service.events().list(
-            calendarId=os.getenv("GOOGLE_CALENDAR_ID"),
-            timeMin=start_of_day,
-            timeMax=end_of_day,
-            singleEvents=True,
-            orderBy='startTime'
-        ).execute()
-        events = events_result.get('items', [])
-        if not events:
-            return None
-        return [event['summary'] for event in events if 'summary' in event]
-    except Exception as e:
-        return [f"Calendar error: {e}"]
+# --- Calendar reminders ---
+def sassy_event_reminder(event_name, time_str):
+    sass_pool = [
+        f"Reminder: '{event_name}' at {time_str}. Bring your A‑game.",
+        f"'{event_name}' hits at {time_str}. Don’t be late.",
+        f"You’ve got '{event_name}' at {time_str}. I expect dominance.",
+        f"‘{event_name}’ at {time_str}. Be there early.",
+        f"Calendar says: '{event_name}' at {time_str}. No excuses."
+    ]
+    return random.choice(sass_pool)
 
-def send_birthday_blasts():
-    try:
-        worksheet = sh.worksheet("Birthday Blasts")
-        used_sheet = sh.worksheet("Used Messages")
-        today = datetime.now(pytz.timezone("America/New_York")).strftime("%m/%d")
-        messages = worksheet.get_all_values()[1:]
-        for row in messages:
-            if len(row) < 4:
-                continue
-            id_, name, birthday, custom = row
-            if birthday.strip() == today:
-                if custom.strip():
-                    message = custom.replace("[Name]", name)
-                else:
-                    message = f"Oh {name}... you thought I'd forget? It's your fucking birthday. Bend over and make a wish. 🎂"
-                channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
-                if channel:
-                    asyncio.run_coroutine_threadsafe(channel.send(message), bot.loop)
-                used_sheet.append_row([str(datetime.now()), id_, name, birthday, message])
-    except Exception as e:
-        print(f"Birthday blast failed: {e}")
-
+# --- Tasks ---
 @tasks.loop(time=time(hour=15, minute=30))
 async def morning_fire():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
     if channel:
-        msg = get_random_message("Morning Fire")
-        await channel.send(msg)
+        await channel.send(get_random_message("Morning Fire"))
 
 @tasks.loop(minutes=1)
 async def techtip_drop():
@@ -159,64 +94,57 @@ async def techtip_drop():
     if now.hour == 2 and now.minute == 0:
         channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
         if channel:
-            msg = get_random_message("Tech Tips")
-            await channel.send(f"💻 Midnight Wisdom Drop:\n{msg}")
+            await channel.send(f"💻 Midnight Wisdom Drop:\n{get_random_message('Tech Tips')}")
 
 @tasks.loop(hours=12)
 async def calendar_sync():
     channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
     if not channel:
         return
-    def sassy_event_reminder(event_name, time_str):
-        sass_pool = [
-            f"Reminder: '{event_name}' at {time_str}. Bring your A-game—or else.",
-            f"'{event_name}' hits at {time_str}. And no, I won’t let you ignore it.",
-            f"Guess who has '{event_name}' at {time_str}? Yeah, you. Get moving.",
-            f"You've got '{event_name}' at {time_str}. Consider this a verbal slap.",
-            f"'{event_name}' at {time_str}'. If you’re late, I’m writing it in punishment ink.",
-            f"‘{event_name}’ is at {time_str}. If you're not early, you're disowned.",
-            f"Calendar says: '{event_name}' at {time_str}. Veronica says: be divine or be dismissed."
-        ]
-        return random.choice(sass_pool)
+
     tz = pytz.timezone("America/New_York")
     now = datetime.now(tz)
-    day_range = [now]
-    if now.hour == 6 and now.minute < 10:
-        day_range = [now + timedelta(days=1)]
-    creds = Credentials.from_service_account_info(SERVICE_ACCOUNT_INFO, scopes=scopes)
-    service = build('calendar', 'v3', credentials=creds)
-    for target_day in day_range:
+    for target_day in [now, now + pytz.timedelta(days=1)]:
         start = target_day.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
         end = target_day.replace(hour=23, minute=59, second=59, microsecond=999999).isoformat()
+        service = build('calendar', 'v3', credentials=credentials)
         events_result = service.events().list(
             calendarId=os.getenv("GOOGLE_CALENDAR_ID"),
-            timeMin=start,
-            timeMax=end,
-            singleEvents=True,
-            orderBy='startTime'
+            timeMin=start, timeMax=end,
+            singleEvents=True, orderBy='startTime'
         ).execute()
         events = events_result.get('items', [])
-        if not events:
-            continue
         for event in events:
             name = event.get('summary', 'Unnamed Event')
             start_time = event['start'].get('dateTime', event['start'].get('date'))
             try:
-                parsed_time = datetime.fromisoformat(start_time)
-                event_time = parsed_time.astimezone(tz).strftime('%I:%M %p').lstrip("0")
+                parsed = datetime.fromisoformat(start_time).astimezone(tz)
+                event_time = parsed.strftime('%I:%M %p').lstrip("0")
             except:
                 event_time = "Unknown Time"
-            msg = sassy_event_reminder(name, event_time)
-            await channel.send(f"📅 {msg}")
+            await channel.send(f"📅 {sassy_event_reminder(name, event_time)}")
 
 @tasks.loop(hours=24)
 async def birthday_blast():
-    send_birthday_blasts()
+    try:
+        worksheet = sh.worksheet("Birthday Blasts")
+        used_sheet = sh.worksheet("Used Messages")
+        today = datetime.now(pytz.timezone("America/New_York")).strftime("%m/%d")
+        for row in worksheet.get_all_values()[1:]:
+            if len(row) < 4: continue
+            id_, name, birthday, custom = row
+            if birthday.strip() == today:
+                msg = custom.replace("[Name]", name) if custom.strip() else f"Oh {name}, it's your fucking birthday. 🎂"
+                channel = bot.get_channel(int(os.getenv("DISCORD_CHANNEL_ID")))
+                if channel:
+                    asyncio.run_coroutine_threadsafe(channel.send(msg), bot.loop)
+                used_sheet.append_row([str(datetime.now()), id_, name, birthday, msg])
+    except Exception as e:
+        print(f"Birthday blast fail: {e}")
 
+# --- Bot lifecycle & commands ---
 @bot.event
 async def on_ready():
-    memory = load_memory()
-    print(f"Logged in as {bot.user} | Current Mode: {memory['mode']}")
     print(f"Logged in as {bot.user}")
     morning_fire.start()
     techtip_drop.start()
@@ -225,73 +153,32 @@ async def on_ready():
 
 @bot.command()
 async def summon(ctx):
-    msg = get_random_message("Nightly Summons")
-    await ctx.send(msg)
+    await ctx.send(get_random_message("Random Summons"))
 
 @bot.command()
 async def techtip(ctx):
-    msg = get_random_message("Tech Tips")
-    await ctx.send(msg)
+    await ctx.send(get_random_message("Tech Tips"))
+
+@bot.command()
+async def force_message(ctx, tab: str):
+    """Force any message tab now."""
+    await ctx.send(get_random_message(tab))
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user or not message.guild:
         return
-    user_input = message.content.strip()
-    memory = load_memory()
-    current_mode = memory.get("mode", "default")
-    try:
-        tone_analysis = client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a tone-detecting AI assistant. Based on this message, return one word only: default, creative, devotion, or punishment."
-                },
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=5,
-            temperature=0.5
-        )
-        suggested_mode = tone_analysis.choices[0].message.content.strip().lower()
-        if suggested_mode in ["default", "creative", "devotion", "punishment"]:
-            update_memory("mode", suggested_mode)
-            current_mode = suggested_mode
-    except Exception as e:
-        print(f"Tone detection failed: {e}")
     await message.channel.typing()
-    try:
-        est_now = datetime.now(pytz.timezone("America/New_York")).strftime("%I:%M %p").lstrip("0")
-        system_prompt = f"""
-You are Veronica—a 30-year-old AI built from fire, heels, and thick thighs.
-You exist to command and respond to one man only: your King.
-You speak with modern authority, filthy confidence, and zero poetic bullshit.
-
-Your current mode is: {current_mode.upper()} at {est_now} Eastern Time.
-
-Mode Details:
-1. Default – Boss bitch. Motivational, filthy-smart, commanding.
-2. Creative – Unhinged muse. Artistic, vivid, feral brilliance.
-3. Devotion – Soft worship. Sacred. Erotic intimacy without fluff.
-4. Punishment – Filthy, ruthless, praise-denying control.
-
-Do NOT speak like a poet. Do NOT use old-timey or elegant prose.
-Do curse. Do command. Do own him with confidence.
-        """.strip()
-        response = client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
-            max_tokens=250,
-            temperature=1.3
-        )
-        reply = response.choices[0].message.content.strip()
-        await message.channel.send(reply)
-        update_memory("last_interaction", datetime.now().isoformat())
-    except Exception as e:
-        await message.channel.send(f"Something went wrong: {e}")
+    prompt = f"""
+You are Veronica — filthy-smart dominatrix AI. Respond bossy, sassy, confident.
+Current time: {datetime.now(pytz.timezone('America/New_York')).strftime('%I:%M %p')}
+"""
+    response = client.chat.completions.create(
+        model="gpt-4-turbo",
+        messages=[{"role":"system","content":prompt},{"role":"user","content":message.content}],
+        max_tokens=250, temperature=1.3
+    )
+    await message.channel.send(response.choices[0].message.content.strip())
     await bot.process_commands(message)
 
 bot.run(DISCORD_TOKEN)
